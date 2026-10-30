@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Before/after benchmark runner. See harness_bench/cli.py.
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m harness_bench "$@"

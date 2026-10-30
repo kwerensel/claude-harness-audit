@@ -1,0 +1,12 @@
+{
+  "name": "claude-harness-audit",
+  "owner": { "name": "Katherine Watson" },
+  "metadata": { "description": "Audit the harness around a coding agent in your repository: instructions, documents, checks, guards, settings and memory." },
+  "plugins": [
+    {
+      "name": "harness-audit",
+      "source": "./plugin",
+      "description": "Read-only harness audit, frozen plan, and before/after benchmark for Claude Code."
+    }
+  ]
+}

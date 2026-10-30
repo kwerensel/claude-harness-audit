@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Run folders and plan freezing. See harness_bench/state.py.
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m harness_bench.state "$@"

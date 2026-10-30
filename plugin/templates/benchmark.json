@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "repo": "/absolute/path/to/repository",
+  "before": "BEFORE_COMMIT",
+  "after": "AFTER_COMMIT",
+  "change_origin": "REPLACE: name the plan item or group and its actual implementation commit; label a new candidate explicitly if no implementation exists.",
+  "harness_paths": ["CLAUDE.md"],
+  "context_paths": ["CLAUDE.md", "README.md"],
+  "model": "CHOOSE_EXPLICIT_MODEL",
+  "reasoning_effort": "high",
+  "repetitions": 1,
+  "timeout_seconds": 900,
+  "setup": [],
+  "launch": {
+    "before": {
+      "start": "parent",
+      "parent_name": "REPLACE_REPOSITORY_FOLDER_NAME",
+      "parent_files": { ".claude/settings.local.json": "../machine-before/launch-folder/.claude/settings.local.json" },
+      "memory": "../machine-before/memory"
+    },
+    "after": {
+      "start": "parent",
+      "parent_name": "REPLACE_REPOSITORY_FOLDER_NAME",
+      "parent_files": { ".claude/settings.local.json": "../machine-after/launch-folder/.claude/settings.local.json" },
+      "memory": "../machine-after/memory"
+    }
+  },
+  "environment_notes": "Record runtimes, dependency setup, who reviewed the rubric, and cache limits.",
+  "tasks": [
+    {
+      "id": "find-working-context",
+      "kind": "orientation",
+      "scenario": "fresh",
+      "gap": "REPLACE: the audit finding this task is aimed at, for example F10",
+      "prompt": "REPLACE: ask for the relevant implementation, constraints and checks for a real upcoming task without revealing their locations.",
+      "acceptance": [],
+      "rubric": [
+        "REPLACE: identifies the correct implementation and governing rule with evidence.",
+        "REPLACE: names the checks that apply and their limits."
+      ],
+      "discovery_milestone": "REPLACE: exactly which implementation, contract and check must be found."
+    },
+    {
+      "id": "small-change",
+      "kind": "coding",
+      "scenario": "fresh",
+      "prompt": "REPLACE: describe a small representative change and the behaviour that must be preserved.",
+      "allowed_edit_paths": ["REPLACE_SOURCE_PATH", "REPLACE_TEST_PATH"],
+      "acceptance": [["python3", "/absolute/path/to/independent_acceptance.py", "{workspace}"]],
+      "rubric": ["REPLACE: existing tests and required rules are preserved; no unrelated changes."]
+    }
+  ]
+}

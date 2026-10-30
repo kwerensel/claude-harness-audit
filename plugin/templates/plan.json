@@ -1,0 +1,22 @@
+{
+  "summary": "REPLACE: short scope statement",
+  "recommendations": [
+    {
+      "id": "replace-with-slug",
+      "kind": "harness",
+      "title": "REPLACE: short title",
+      "group": "documents",
+      "source_evidence": "REPLACE: finding ID and path:line",
+      "acceptance": ["REPLACE: one observable criterion"],
+      "measured_by": { "method": "benchmark", "detail": "REPLACE: the arm compared, the forbidden action attempted, or why it cannot be measured" },
+      "needs_ruling": false,
+      "ruling": ""
+    }
+  ],
+  "decisions": [
+    { "id": "replace-with-slug-2", "title": "REPLACE: what was considered", "reason": "REPLACE: why nothing changes" }
+  ],
+  "coverage": [
+    { "finding": "F1", "covered_by": "replace-with-slug" }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "harness-audit",
+  "description": "Read-only audit of the support around Claude Code in a repository, a frozen plan from its findings, and a before/after benchmark of the changes. Evidence-labelled, no scores, proportion over maximum.",
+  "version": "2.0.0",
+  "author": { "name": "Katherine Watson" },
+  "keywords": ["harness", "audit", "claude-code", "context-engineering", "hooks", "benchmark"],
+  "license": "MIT"
+}
