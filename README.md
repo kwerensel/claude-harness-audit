@@ -123,4 +123,4 @@ before it reaches the report.
 
 ## License
 
-To be decided.
+MIT. See [LICENSE](LICENSE).
