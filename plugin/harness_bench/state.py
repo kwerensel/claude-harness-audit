@@ -69,16 +69,39 @@ def run_dir(repo, root=DEFAULT_ROOT, date=None):
     meta = folder / "run.json"
     if not meta.exists():
         meta.write_text(json.dumps({"repo": ident["path"], "commit": git(repo, "rev-parse", "HEAD"),
-                                    "dirty_at_start": ident["dirty"], "created": date}, indent=2) + "\n")
+                                    "dirty_at_start": ident["dirty"], "created": date,
+                                    "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(
+                                        timespec="microseconds")}, indent=2) + "\n")
     return folder
+
+
+def run_created_at(folder):
+    """Creation time, with a best-effort fallback for runs predating created_at.
+
+    Prefer run.json's mtime to the folder's: writing a plan or benchmark changes
+    the folder mtime, but must not make an older audit the latest run. Legacy
+    metadata that has itself been edited or copied cannot reveal its true age.
+    """
+    meta = folder / "run.json"
+    try:
+        data = json.loads(meta.read_text())
+        created_at = datetime.datetime.fromisoformat(data["created_at"])
+        if created_at.tzinfo is not None:
+            return created_at.timestamp()
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    try:
+        return meta.stat().st_mtime
+    except OSError:
+        return folder.stat().st_mtime
 
 
 def latest_run(repo, root=DEFAULT_ROOT):
     ident = repo_identity(repo)
     base = Path(root).expanduser() / ident["name"]
-    runs = sorted(p for p in base.glob("*") if p.is_dir()) if base.is_dir() else []
+    runs = [p for p in base.glob("*") if p.is_dir()] if base.is_dir() else []
     require(runs, f"No audit run found for {ident['name']} under {base}. Run the audit first.")
-    return runs[-1]
+    return max(runs, key=lambda p: (run_created_at(p), p.name))
 
 
 def load_plan(path):

@@ -1,6 +1,8 @@
 import contextlib
+import datetime
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -59,6 +61,92 @@ class StateTests(unittest.TestCase):
     def test_latest_run_requires_an_audit(self):
         with self.assertRaisesRegex(ValueError, "Run the audit first"):
             latest_run(self.repo, self.runs)
+
+    def make_run(self, name, metadata, modified):
+        folder = self.runs / "My-Repo" / name
+        folder.mkdir(parents=True)
+        if metadata is not None:
+            meta = folder / "run.json"
+            meta.write_text(json.dumps(metadata))
+            os.utime(meta, (modified, modified))
+        os.utime(folder, (modified, modified))
+        return folder
+
+    def test_run_dir_records_an_immutable_aware_creation_timestamp(self):
+        before = datetime.datetime.now(datetime.timezone.utc)
+        run = run_dir(self.repo, self.runs, "2026-10-01")
+        original = (run / "run.json").read_text()
+        meta = json.loads(original)
+        created_at = datetime.datetime.fromisoformat(meta["created_at"])
+        self.assertEqual(meta["created"], "2026-10-01")
+        self.assertEqual(created_at.utcoffset(), datetime.timedelta(0))
+        self.assertLessEqual(before, created_at)
+        self.assertLessEqual(created_at, datetime.datetime.now(datetime.timezone.utc))
+        self.assertEqual(run_dir(self.repo, self.runs, "2026-10-01"), run)
+        self.assertEqual((run / "run.json").read_text(), original)
+
+    def test_latest_run_uses_creation_time_not_commit_hash_or_modification_time(self):
+        older = self.make_run("2026-10-01-fffffff", {"created_at": "2026-10-01T09:00:00+00:00"}, 200)
+        newer = self.make_run("2026-10-01-0000000", {"created_at": "2026-10-01T10:00:00+00:00"}, 100)
+        self.assertGreater(older.name, newer.name)
+        self.assertEqual(latest_run(self.repo, self.runs), newer)
+        # Adding artifacts to an older run must not make it the latest audit.
+        self.write(older, plan())
+        self.assertEqual(latest_run(self.repo, self.runs), newer)
+
+    def test_latest_run_compares_timestamps_as_instants(self):
+        self.make_run("2026-10-01-fffffff", {"created_at": "2026-10-01T11:00:00+02:00"}, 200)
+        newer = self.make_run("2026-10-01-0000000", {"created_at": "2026-10-01T09:00:00.000001+00:00"}, 100)
+        self.assertEqual(latest_run(self.repo, self.runs), newer)
+
+    def test_latest_run_handles_different_dates(self):
+        self.make_run("2026-09-30-fffffff", {"created_at": "2026-09-30T23:59:59+00:00"}, 200)
+        newer = self.make_run("2026-10-01-0000000", {"created_at": "2026-10-01T00:00:00+00:00"}, 100)
+        self.assertEqual(latest_run(self.repo, self.runs), newer)
+
+    def test_latest_run_legacy_uses_metadata_mtime_not_directory_mtime(self):
+        older = self.make_run("2026-10-01-fffffff", {"created": "2026-10-01"}, 100)
+        newer = self.make_run("2026-10-01-0000000", {"created": "2026-10-01"}, 200)
+        self.write(older, plan())
+        os.utime(older, (300, 300))
+        self.assertEqual(latest_run(self.repo, self.runs), newer)
+
+    def test_latest_run_compares_legacy_and_timestamped_runs_together(self):
+        stamp = datetime.datetime(2026, 10, 1, 10, tzinfo=datetime.timezone.utc).timestamp()
+        legacy = self.make_run("2026-10-01-fffffff", {"created": "2026-10-01"}, stamp - 1)
+        newer = self.make_run("2026-10-01-0000000", {"created_at": "2026-10-01T10:00:00+00:00"}, 100)
+        self.assertEqual(latest_run(self.repo, self.runs), newer)
+        os.utime(legacy / "run.json", (stamp + 1, stamp + 1))
+        self.assertEqual(latest_run(self.repo, self.runs), legacy)
+
+    def test_latest_run_falls_back_for_missing_or_invalid_metadata(self):
+        self.make_run("2026-10-01-fffffff", {"created": "2026-10-01"}, 100)
+        newer = self.make_run("2026-10-01-0000000", None, 200)
+        self.assertEqual(latest_run(self.repo, self.runs), newer)
+        meta = newer / "run.json"
+        for contents in ("not json", "[]", "null", '{"created_at": null}',
+                         '{"created_at": "invalid"}', '{"created_at": "2026-10-01"}',
+                         '{"created_at": "2026-10-01T10:00:00"}'):
+            with self.subTest(contents=contents):
+                meta.write_text(contents)
+                os.utime(meta, (200, 200))
+                os.utime(newer, (50, 50))
+                self.assertEqual(latest_run(self.repo, self.runs), newer)
+
+    def test_latest_run_uses_a_deterministic_tiebreaker(self):
+        expected = self.make_run("2026-10-01-fffffff", {"created_at": "2026-10-01T10:00:00+00:00"}, 100)
+        self.make_run("2026-10-01-0000000", {"created_at": "2026-10-01T10:00:00+00:00"}, 200)
+        self.assertEqual(latest_run(self.repo, self.runs), expected)
+
+    def test_latest_command_selects_newer_same_day_run_and_ignores_files(self):
+        self.make_run("2026-10-01-fffffff", {"created": "2026-10-01"}, 100)
+        newer = self.make_run("2026-10-01-0000000", {"created": "2026-10-01"}, 200)
+        (newer.parent / "notes.txt").write_text("not a run")
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = main(["latest", "--repo", str(self.repo), "--root", str(self.runs)])
+        self.assertEqual(result, 0)
+        self.assertEqual(output.getvalue().strip(), str(newer))
 
     def test_freeze_then_check_then_detect_a_changed_criterion(self):
         run = run_dir(self.repo, self.runs, "2026-10-01")
